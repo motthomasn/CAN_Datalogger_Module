@@ -21,8 +21,8 @@
  * Version 3.0  04-06-2020  Updated code to work with PlatformIO. CAN message IDs adjusted to suit F88R datastream
  * 
  * This code is designed for use with the CBR015-0002 CAN DATALOGGER ASSY utilising CBR015-0003 Rev00 PCB layout
- * CAN Config: 200225_LOGGER_CAN_CONFIG_v1.3.xlsx
- * Data File Converter: CBR015-0002_Bin_File_Converter_v2.1.0.m
+ * CAN Config: 200815_LOGGER_CAN_CONFIG_v2.1.xlsx
+ * Data File Converter: CBR015-0002_Bin_File_Converter_v3.0.py
  * Converter Input Config: CBR015-0002_CAN_LOGGER_CONFIG_v1.0.dbc
  * Messages recieved via CAN are MSB First or Big Endian byte order. Time signal is saved to file in MSB Last or Little Endian byte order.
  * 
