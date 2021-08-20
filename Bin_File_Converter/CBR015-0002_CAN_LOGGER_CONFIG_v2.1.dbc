@@ -1,0 +1,216 @@
+VERSION ""
+
+
+NS_ : 
+	NS_DESC_
+	CM_
+	BA_DEF_
+	BA_
+	VAL_
+	CAT_DEF_
+	CAT_
+	FILTER
+	BA_DEF_DEF_
+	EV_DATA_
+	ENVVAR_DATA_
+	SGTYPE_
+	SGTYPE_VAL_
+	BA_DEF_SGTYPE_
+	BA_SGTYPE_
+	SIG_TYPE_REF_
+	VAL_TABLE_
+	SIG_GROUP_
+	SIG_VALTYPE_
+	SIGTYPE_VALTYPE_
+	BO_TX_BU_
+	BA_DEF_REL_
+	BA_REL_
+	BA_DEF_DEF_REL_
+	BU_SG_REL_
+	BU_EV_REL_
+	BU_BO_REL_
+	SG_MUL_VAL_
+
+BS_:
+
+BU_:
+
+
+BO_ 3221225472 VECTOR__INDEPENDENT_SIG_MSG: 0 Vector__XXX
+ SG_ NewSignal_0065 : 55|16@0- (1,0) [0|0] "" Vector__XXX
+
+BO_ 1600 EGT_Module: 8 Vector__XXX
+ SG_ egt4 : 55|16@0- (0.1,0) [0|0] "degC" Vector__XXX
+ SG_ egt3 : 39|16@0- (0.1,0) [0|0] "degC" Vector__XXX
+ SG_ egt2 : 23|16@0- (0.1,0) [0|0] "degC" Vector__XXX
+ SG_ egt1 : 7|16@0- (0.1,0) [0|0] "degC" Vector__XXX
+
+BO_ 1535 Logger_Time: 8 Vector__XXX
+ SG_ Time : 0|64@1+ (0.001,0) [0|0] "s" Vector__XXX
+
+BO_ 1664 GPS_IMU_01: 8 Vector__XXX
+ SG_ gpsLat : 7|32@0- (1e-07,0) [0|0] "deg" Vector__XXX
+ SG_ gpsLong : 39|32@0- (1e-07,0) [0|0] "deg" Vector__XXX
+
+BO_ 1665 GPS_IMU_02: 8 Vector__XXX
+ SG_ gpsSpeed : 7|16@0- (0.1,0) [0|0] "kph" Vector__XXX
+ SG_ gpsAltitude : 23|16@0- (1,0) [0|0] "m" Vector__XXX
+
+BO_ 1601 GPS_IMU_03: 8 Vector__XXX
+ SG_ imuVertG : 39|16@0- (0.001,0) [0|0] "G" Vector__XXX
+ SG_ imuRolldot : 55|16@0- (0.1,0) [0|0] "deg/s" Vector__XXX
+ SG_ imuLongG : 23|16@0- (0.001,0) [0|0] "G" Vector__XXX
+ SG_ imuLatG : 7|16@0- (0.001,0) [0|0] "G" Vector__XXX
+
+BO_ 1602 GPS_IMU_04: 8 Vector__XXX
+ SG_ imuPitchdot : 7|16@0- (0.1,0) [0|0] "deg/s" Vector__XXX
+ SG_ imuYawdot : 23|16@0- (0.1,0) [0|0] "deg/s" Vector__XXX
+ SG_ gpsCourse : 39|16@0- (0.1,0) [0|0] "deg" Vector__XXX
+ SG_ gpsNumSats : 55|16@0- (1,0) [0|0] "-" Vector__XXX
+
+BO_ 1553 SPARE_01: 8 Vector__XXX
+
+BO_ 1554 SPARE_02: 8 Vector__XXX
+
+BO_ 372 MM510_01: 8 Vector__XXX
+ SG_ yaw : 0|16@1- (0.005,0) [0|0] "deg/s" Vector__XXX
+ SG_ latG : 32|16@1- (0.0001274,0) [0|0] "G" Vector__XXX
+
+BO_ 376 MM510_02: 8 Vector__XXX
+ SG_ roll : 0|16@1- (0.005,0) [0|0] "deg/s" Vector__XXX
+ SG_ longG : 32|16@1- (0.0001274,0) [0|0] "G" Vector__XXX
+
+BO_ 380 MM510_03: 8 Vector__XXX
+ SG_ vertG : 32|16@1- (0.0001274,0) [0|0] "G" Vector__XXX
+
+BO_ 1536 ECU_01: 8 Vector__XXX
+ SG_ rpm : 7|16@0- (1,0) [0|0] "rpm" Vector__XXX
+ SG_ vehicleSpeed : 23|16@0- (0.036,0) [0|0] "kph" Vector__XXX
+ SG_ flSpeed : 39|16@0- (0.036,0) [0|0] "kph" Vector__XXX
+ SG_ rlSpeed : 55|16@0- (0.036,0) [0|0] "kph" Vector__XXX
+
+BO_ 1537 ECU_02: 8 Vector__XXX
+ SG_ ect1 : 7|16@0- (0.1,0) [0|0] "degC" Vector__XXX
+ SG_ eot : 23|16@0- (0.1,0) [0|0] "degC" Vector__XXX
+ SG_ eop1 : 39|16@0- (1,0) [0|0] "mBarA" Vector__XXX
+ SG_ engineEnable : 55|16@0+ (1,0) [0|0] "-" Vector__XXX
+
+BO_ 1538 ECU_03: 8 Vector__XXX
+ SG_ act1 : 7|16@0- (0.1,0) [0|0] "degC" Vector__XXX
+ SG_ bap : 23|16@0- (1,0) [0|0] "mBarA" Vector__XXX
+ SG_ aat : 39|16@0- (0.1,0) [0|0] "degC" Vector__XXX
+ SG_ bpf : 55|16@0- (0.01,0) [0|0] "Bar" Vector__XXX
+
+BO_ 1539 ECU_04: 8 Vector__XXX
+ SG_ map1 : 7|16@0- (1,0) [0|0] "mBarA" Vector__XXX
+ SG_ tps1 : 23|16@0- (0.012207031,0) [0|0] "%" Vector__XXX
+ SG_ ppsDriver : 39|16@0- (0.012207031,0) [0|0] "%" Vector__XXX
+ SG_ gearCutRequest : 55|16@0+ (1,0) [0|0] "-" Vector__XXX
+
+BO_ 1540 ECU_05: 8 Vector__XXX
+ SG_ lam1 : 7|16@0- (0.001,0) [0|0] "-" Vector__XXX
+ SG_ cllTarg1 : 23|16@0- (0.001,0) [0|0] "-" Vector__XXX
+ SG_ fuelMltCll1 : 39|16@0- (0.000244141,0) [0|0] "-" Vector__XXX
+ SG_ fuelFinalPri1 : 55|16@0+ (0.001,0) [0|0] "ms" Vector__XXX
+
+BO_ 1541 ECU_06: 8 Vector__XXX
+ SG_ lam2 : 7|16@0- (0.001,0) [0|0] "-" Vector__XXX
+ SG_ cllTarg2 : 23|16@0- (0.001,0) [0|0] "-" Vector__XXX
+ SG_ fuelMltCll2 : 39|16@0- (0.000244141,0) [0|0] "-" Vector__XXX
+ SG_ fuelFinalPri2 : 55|16@0+ (0.001,0) [0|0] "ms" Vector__XXX
+
+BO_ 1542 ECU_07: 8 Vector__XXX
+ SG_ cllI1 : 7|16@0- (0.0244141,0) [0|0] "%" Vector__XXX
+ SG_ cllP1 : 23|16@0- (0.024414063,0) [0|0] "%" Vector__XXX
+ SG_ fuelBase1 : 39|16@0+ (0.001,0) [0|0] "ms" Vector__XXX
+ SG_ fuelMltLoad1 : 55|16@0- (0.000244141,0) [0|0] "-" Vector__XXX
+
+BO_ 1543 ECU_08: 8 Vector__XXX
+ SG_ cllI2 : 7|16@0- (0.024414063,0) [0|0] "%" Vector__XXX
+ SG_ cllP2 : 23|16@0- (0.024414063,0) [0|0] "%" Vector__XXX
+ SG_ fuelBase2 : 39|16@0+ (0.001,0) [0|0] "ms" Vector__XXX
+ SG_ fuelMltLoad2 : 55|16@0- (0.000244141,0) [0|0] "-" Vector__XXX
+
+BO_ 1544 ECU_09: 8 Vector__XXX
+ SG_ fuelAddVbatPri : 7|16@0+ (0.001,0) [0|0] "ms" Vector__XXX
+ SG_ fuelEndAngle : 23|16@0- (0.03125,0) [0|0] "deg" Vector__XXX
+ SG_ fuelMltBap : 39|16@0- (0.000244141,0) [0|0] "-" Vector__XXX
+ SG_ fuelMltIdle : 55|16@0- (0.000244141,0) [0|0] "-" Vector__XXX
+
+BO_ 1545 ECU_10: 8 Vector__XXX
+ SG_ fuelMltMap1 : 7|16@0- (0.000976563,0) [0|0] "-" Vector__XXX
+ SG_ fuelMltEct1 : 23|16@0- (0.000244141,0) [0|0] "-" Vector__XXX
+ SG_ fuelMltCrank1 : 39|16@0- (0.000976563,0) [0|0] "-" Vector__XXX
+ SG_ fuelMltAct1 : 55|16@0- (0.000244141,0) [0|0] "-" Vector__XXX
+
+BO_ 1546 ECU_11: 8 Vector__XXX
+ SG_ fuelMltMap2 : 7|16@0- (0.000976563,0) [0|0] "-" Vector__XXX
+ SG_ fuelMltEct2 : 23|16@0- (0.000244141,0) [0|0] "-" Vector__XXX
+ SG_ fuelMltCrank2 : 39|16@0- (0.000976563,0) [0|0] "-" Vector__XXX
+ SG_ fuelMltAct2 : 55|16@0- (0.000244141,0) [0|0] "-" Vector__XXX
+
+BO_ 1547 ECU_12: 8 Vector__XXX
+ SG_ ignBase1 : 7|16@0- (0.03125,0) [0|0] "deg" Vector__XXX
+ SG_ ignFinalPri1 : 23|16@0- (0.03125,0) [0|0] "deg" Vector__XXX
+ SG_ ignAddLoad1 : 39|16@0- (0.03125,0) [0|0] "deg" Vector__XXX
+ SG_ ignAddMap1 : 55|16@0- (0.03125,0) [0|0] "deg" Vector__XXX
+
+BO_ 1548 ECU_13: 8 Vector__XXX
+ SG_ ignBase2 : 7|16@0- (0.03125,0) [0|0] "deg" Vector__XXX
+ SG_ ignFinalPri2 : 23|16@0- (0.03125,0) [0|0] "deg" Vector__XXX
+ SG_ ignAddLoad2 : 39|16@0- (0.03125,0) [0|0] "deg" Vector__XXX
+ SG_ ignAddMap2 : 55|16@0- (0.03125,0) [0|0] "deg" Vector__XXX
+
+BO_ 1549 ECU_14: 8 Vector__XXX
+ SG_ ignAddAct1 : 7|16@0- (0.03125,0) [0|0] "deg" Vector__XXX
+ SG_ ignAddEct1 : 23|16@0- (0.03125,0) [0|0] "deg" Vector__XXX
+ SG_ idleIgnAddBase : 39|16@0- (0.03125,0) [0|0] "deg" Vector__XXX
+ SG_ ignAddIdle : 55|16@0- (0.03125,0) [0|0] "deg" Vector__XXX
+
+BO_ 1550 ECU_15: 8 Vector__XXX
+ SG_ ignAddAct2 : 7|16@0- (0.03125,0) [0|0] "deg" Vector__XXX
+ SG_ ignAddEct2 : 23|16@0- (0.03125,0) [0|0] "deg" Vector__XXX
+ SG_ ignAddBap : 39|16@0- (0.03125,0) [0|0] "deg" Vector__XXX
+ SG_ ignAddGear : 55|16@0- (0.03125,0) [0|0] "deg" Vector__XXX
+
+BO_ 1551 ECU_16: 8 Vector__XXX
+ SG_ fuelPump1Duty : 7|16@0- (0.012207031,0) [0|0] "%" Vector__XXX
+ SG_ gear : 23|16@0- (1,0) [0|0] "-" Vector__XXX
+ SG_ idleTarget : 39|16@0- (1,0) [0|0] "rpm" Vector__XXX
+
+BO_ 1552 ECU_17: 8 Vector__XXX
+ SG_ idleError : 7|16@0- (1,0) [0|0] "rpm" Vector__XXX
+ SG_ vbat : 23|16@0- (0.001,0) [0|0] "V" Vector__XXX
+ SG_ engineStopTimer : 39|16@0- (0.01,0) [0|0] "s" Vector__XXX
+ SG_ idleActiveTime : 55|16@0- (0.01,0) [0|0] "s" Vector__XXX
+
+BO_ 1666 SPARE_03: 8 Vector__XXX
+
+BO_ 1667 SPARE_04: 8 Vector__XXX
+
+BO_ 1668 SPARE_05: 8 Vector__XXX
+
+BO_ 1669 SPARE_06: 8 Vector__XXX
+
+
+
+CM_ SG_ 1600 egt4 "EGT cyl #4";
+CM_ SG_ 1600 egt3 "EGT cyl #3";
+CM_ SG_ 1600 egt2 "EGT cyl #2";
+CM_ SG_ 1600 egt1 "EGT cyl #1";
+CM_ SG_ 1535 Time "Time since log started";
+CM_ SG_ 1664 gpsLat "Latitude from Venus828";
+CM_ SG_ 1664 gpsLong "Longitude from Venus828";
+CM_ SG_ 1665 gpsSpeed "Speed from Venus838 GPS";
+CM_ SG_ 1665 gpsAltitude "Altitude from Venus838 GPS";
+CM_ SG_ 1601 imuVertG "Acceleration in Z axis from BNO055 IMU";
+CM_ SG_ 1601 imuRolldot "Roll Rate (about X) from BNO055 IMU";
+CM_ SG_ 1601 imuLongG "Acceleration in X axis from BNO055 IMU";
+CM_ SG_ 1601 imuLatG "Acceleration in Y axis from BNO055 IMU";
+CM_ SG_ 1602 imuPitchdot "Pitchl Rate (about Y) from BNO055 IMU";
+CM_ SG_ 1602 imuYawdot "Yawl Rate (about Z) from BNO055 IMU";
+CM_ SG_ 1602 gpsCourse "Heading from Venus838 GPS";
+CM_ SG_ 1602 gpsNumSats "Number of Satellites from Venus838 GPS Fix";
+BA_DEF_  "BusType" STRING ;
+BA_DEF_DEF_  "BusType" "CAN";
+
