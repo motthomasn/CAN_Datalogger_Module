@@ -19,326 +19,342 @@
  * Version 1.2  30-12-2019  Added EGT data recieved from 015-0012_K-TYPES_MODULE_ASSY_CODE_v1.0
  * Version 2.0  25-02-2020  Adjusted data struct to suit optimised .dbc config file and Python post processing. Raw message data passed directly to struct. 
  * Version 3.0  04-06-2020  Updated code to work with PlatformIO. CAN message IDs adjusted to suit F88R datastream
+ * Version 4.0  17-04-2025  Adusted for more end-user configurability.
+ *                          Enhancements include, error reporting via LED, config load from file on SD card, dynamic CAN ID mapping, buffering of 
+ *                          records and optimised SD card writes
  * 
  * This code is designed for use with the CBR015-0002 CAN DATALOGGER ASSY utilising CBR015-0003 Rev00 PCB layout
- * CAN Config: 200815_LOGGER_CAN_CONFIG_v2.1.xlsx
- * Data File Converter: CBR015-0002_Bin_File_Converter_v3.0.py
- * Converter Input Config: CBR015-0002_CAN_LOGGER_CONFIG_v1.0.dbc
  * Messages recieved via CAN are MSB First or Big Endian byte order. Time signal is saved to file in MSB Last or Little Endian byte order.
+ *
+ * config.txt file is required on SD card. Config fields:
+ *  -  filename_prefix=<text string which will be prefixed to each log file>
+ *  -  log_frequency=<logging frequency in Hz>
+ *  -  can_speed=<CAN Bus speed in bps>
+ *  -  can_ids=<comma seperated list of messgae ID's to be logged in hex>
  * 
  * See documentation for details & overview
  */
 
 #include <Arduino.h>
-
 #include <SPI.h>
 #include <SdFat.h>
-#include <TimeLib.h>
-//#include <string.h>
 #include <FlexCAN.h>
+#include <TimeLib.h>
+#include <map>
+#include <vector>
+#include <array>
 
-// ===============================================================================================================
-// Declare variables most likely to be adjusted by user in this block
+// ======================== CONFIGURABLE LIMITS ========================
+#define MAX_CAN_MESSAGES 64  // Max messages supported in one log
+#define RECORD_ALIGN_BYTES 512
+#define SD_CONFIG_FILE "config.txt"
+#define DEFAULT_FILE_PREFIX ""
+#define LED_PIN 13
+#define DEFAULT_LOG_FREQ 20
+#define DEFAULT_CAN_SPEED 500000
 
-#define log_freq 20      // Logging rate in Hz
-#define can_speed 500000 // CAN-Bus baud rate in bps
-
-// ===============================================================================================================
-// Declare Data Variable Name Arrays here
-
-// Parameter names represent message ID. Precision is always a byte array with size 8 (full 8 byte CAN message)
-struct ECU_Data
-{
-  uint64_t ID_5FF; // Time is different from rest as it is not recieved as CAN message
-  byte ID_600[8];
-  byte ID_601[8];
-  byte ID_602[8];
-  byte ID_603[8];
-  byte ID_604[8];
-  byte ID_605[8];
-  byte ID_606[8];
-  byte ID_607[8];
-  byte ID_608[8];
-  byte ID_609[8];
-  byte ID_60A[8];
-  byte ID_60B[8];
-  byte ID_60C[8];
-  byte ID_60D[8];
-  byte ID_60E[8];
-  byte ID_60F[8];
-  byte ID_610[8];
-  byte ID_611[8];
-  byte ID_612[8];
-  byte ID_640[8];
-  byte ID_641[8];
-  byte ID_642[8];
-  byte ID_680[8];
-  byte ID_681[8];
-  byte ID_682[8];
-  byte ID_683[8];
-  byte ID_684[8];
-  byte ID_685[8];
-  byte ID_174[8];
-  byte ID_178[8];
-  byte ID_17C[8];
-  // try to maintain struct size at 256 bytes, allowing potential to use 2 record buffer to increase data write speeds.
+// ======================== STRUCTS ========================
+struct LogHeader {
+  uint32_t magic;           // 'CAND'
+  uint16_t version;         // Format version
+  uint16_t record_size;     // Size of a data record
+  uint16_t record_count;    // Number of records per buffer write
+  uint16_t log_frequency;   // Hz
+  uint32_t can_speed;       // CAN baud rate
+  uint8_t  message_count;   // Count of CAN messages
+  uint32_t message_ids[MAX_CAN_MESSAGES];
 };
 
-struct ECU_Data Data; // This struct will only ever have one instance at a time & needs to be accessed by all functions
+// ======================== GLOBALS ========================
+// SD card pins
+const uint8_t chipSelect = 15;
+const uint8_t mosi = 7;
+const uint8_t miso = 8;
+const uint8_t sck = 14;
 
-// ===============================================================================================================
-
-// Initialise SPI pin numbers according to CBR015-0003 Rev00 schematic
-#define chipSelect 15
-#define mosi 7
-#define miso 8
-#define sck 14
-
-// Initialise can bus and can messages
-static CAN_message_t rxmsg;
-
-// Declare variables used by logger
-uint16_t log_period, diff;
-uint32_t LogStartMillis, prev_time, now_time, CANReadTime;
-bool LogStarted;
-bool dataFile = 0;
-
-//------------------------------------------------------------------------------
-// File system object.
+// SD and file objects
 SdFat sd;
-
-// Log file.
 SdFile file;
 
-// ===============================================================================================================
-// User functions.  Edit writeHeader() and logData() for your requirements.
+// CAN message storage
+CAN_message_t rxmsg;
+std::vector<uint32_t> loggedMessageIDs;
+std::map<uint32_t, std::array<byte, 8>> activeCANMessages;
 
-// Error messages stored in flash.
-#define error(msg) sd.errorHalt(F(msg))
+// Configuration variables
+char filePrefix[20] = DEFAULT_FILE_PREFIX;
+uint32_t canSpeed = DEFAULT_CAN_SPEED;
+uint16_t logFreq = DEFAULT_LOG_FREQ;
+uint16_t recordSize;
+uint16_t recordsPerBlock;
+uint16_t bufferSize;
 
-// ===============================================================================================================
-// Log a data record.
-void logData()
-{
+// Logging state
+uint8_t* logBuffer = nullptr;
+uint16_t bufferIndex = 0;
+bool logStarted = false;
+uint32_t logStartMillis;
+uint32_t prevMicros = 0;
+uint32_t logPeriod;
 
-  if (LogStarted == false)
-  {                            //check log started flag
-    LogStartMillis = millis(); // store time from first log. This is used to calculate Time variable (time since log start in seconds)
-    LogStarted = true;         //set log started flag to true to avoid this section of code from running again
-  }
+// Status indicators
+bool sdCardInitialized = false;
+bool configLoaded = false;
+uint32_t errorBlinkStart = 0;
+uint8_t errorCode = 0;
 
-  uint64_t Time = (millis() - LogStartMillis); // calculate time since log start in ms
+// Error codes
+enum ErrorCode {
+  ERROR_NONE = 0,
+  ERROR_SD_INIT = 1,
+  ERROR_CONFIG_FILE = 2, 
+  ERROR_FILE_OPEN = 3,
+  ERROR_MEMORY = 4
+};
 
-  Data.ID_5FF = Time;
-
-  file.write((const uint8_t *)&Data, sizeof(Data));
-}
-
-// ===============================================================================================================
-
-void CopyArray(byte src[8], byte dest[8])
-{
-  // function to manage copying of CAN message byte arrays to data structure while maintaining Endian-ness
-
-  uint8_t i;
-
-  for (i = 0; i < 8; i++)
-  {
-    dest[i] = src[i];
-  }
-}
-
-// ===============================================================================================================
-
-void can_recieve()
-{
-
-  if (Can0.available())
-  {
-
-    Can0.read(rxmsg);
-
-    switch (rxmsg.id)
-    {
-
-    // with each message data, we copy the bytes individually across to the data struct array to maintain Endian-ness
-    case 0x600:
-      CopyArray(rxmsg.buf, Data.ID_600);
-      break;
-    case 0x601:
-      CopyArray(rxmsg.buf, Data.ID_601);
-      break;
-    case 0x602:
-      CopyArray(rxmsg.buf, Data.ID_602);
-      break;
-    case 0x603:
-      CopyArray(rxmsg.buf, Data.ID_603);
-      break;
-    case 0x604:
-      CopyArray(rxmsg.buf, Data.ID_604);
-      break;
-    case 0x605:
-      CopyArray(rxmsg.buf, Data.ID_605);
-      break;
-    case 0x606:
-      CopyArray(rxmsg.buf, Data.ID_606);
-      break;
-    case 0x607:
-      CopyArray(rxmsg.buf, Data.ID_607);
-      break;
-    case 0x608:
-      CopyArray(rxmsg.buf, Data.ID_608);
-      break;
-    case 0x609:
-      CopyArray(rxmsg.buf, Data.ID_609);
-      break;
-    case 0x60A:
-      CopyArray(rxmsg.buf, Data.ID_60A);
-      break;
-    case 0x60B:
-      CopyArray(rxmsg.buf, Data.ID_60B);
-      break;
-    case 0x60C:
-      CopyArray(rxmsg.buf, Data.ID_60C);
-      break;
-    case 0x60D:
-      CopyArray(rxmsg.buf, Data.ID_60D);
-      break;
-    case 0x60E:
-      CopyArray(rxmsg.buf, Data.ID_60E);
-      break;
-    case 0x60F:
-      CopyArray(rxmsg.buf, Data.ID_60F);
-      break;
-    case 0x610:
-      CopyArray(rxmsg.buf, Data.ID_610);
-      break;
-    case 0x611:
-      CopyArray(rxmsg.buf, Data.ID_611);
-      break;
-    case 0x612:
-      CopyArray(rxmsg.buf, Data.ID_612);
-      break;
-    case 0x640:
-      CopyArray(rxmsg.buf, Data.ID_640);
-      break;
-    case 0x641:
-      CopyArray(rxmsg.buf, Data.ID_641);
-      break;
-    case 0x642:
-      CopyArray(rxmsg.buf, Data.ID_642);
-      break;
-    case 0x680:
-      CopyArray(rxmsg.buf, Data.ID_680);
-      break;
-    case 0x681:
-      CopyArray(rxmsg.buf, Data.ID_681);
-      break;
-    case 0x682:
-      CopyArray(rxmsg.buf, Data.ID_682);
-      break;
-    case 0x683:
-      CopyArray(rxmsg.buf, Data.ID_683);
-      break;
-    case 0x684:
-      CopyArray(rxmsg.buf, Data.ID_684);
-      break;
-    case 0x685:
-      CopyArray(rxmsg.buf, Data.ID_685);
-      break;
-    case 0x174:
-      CopyArray(rxmsg.buf, Data.ID_174);
-      break;
-    case 0x178:
-      CopyArray(rxmsg.buf, Data.ID_178);
-      break;
-    case 0x17C:
-      CopyArray(rxmsg.buf, Data.ID_17C);
-      break;
-    }
-  }
-}
-
-// ===============================================================================================================
-
+// ======================== UTILITY ========================
 time_t getTeensy3Time()
 {
   return Teensy3Clock.get();
 }
 
-// ===============================================================================================================
-void setup()
-{
+void indicateError(ErrorCode code) {
+  errorCode = code;
+  errorBlinkStart = millis();
+  // Error will be indicated by LED blinking pattern in main loop
+}
 
-  //Serial.begin(9600); //debug only
+void blinkError() {
+  // Serial.println(errorCode);
 
-  // Set up SD card pins. SdFat cannot access card without these declarations
+  if (errorCode == ERROR_NONE) return;
+  
+  uint32_t now = millis();
+  uint32_t cycle = (now - errorBlinkStart) % 2000;
+  
+  if (cycle < 1000) {
+    // On-Off pattern based on error code
+    if ((cycle % 500) < (errorCode * 100)) {
+      digitalWrite(LED_PIN, HIGH);
+    } else {
+      digitalWrite(LED_PIN, LOW);
+    }
+  } else {
+    digitalWrite(LED_PIN, LOW);
+  }
+}
+
+bool loadConfig() {
+  File config = sd.open(SD_CONFIG_FILE);
+  if (!config) {
+    indicateError(ERROR_CONFIG_FILE);
+    return false;
+  }
+
+  while (config.available()) {
+    String line = config.readStringUntil('\n');
+    line.trim();
+
+    if (line.startsWith("filename_prefix=")) {
+      line.remove(0, 16);
+      line.toCharArray(filePrefix, sizeof(filePrefix));
+    } else if (line.startsWith("log_frequency=")) {
+      logFreq = constrain(line.substring(14).toInt(), 1, 100); // Reasonable limits
+    } else if (line.startsWith("can_speed=")) {
+      uint32_t speed = line.substring(10).toInt();
+      // Validate against common CAN speeds
+      if (speed == 125000 || speed == 250000 || speed == 500000 || speed == 800000 || speed == 1000000) {
+        canSpeed = speed;
+      }
+    } else if (line.startsWith("can_ids=")) {
+      String ids = line.substring(8);
+      while (ids.length() && loggedMessageIDs.size() < MAX_CAN_MESSAGES) {
+        int comma = ids.indexOf(',');
+        String idStr = (comma == -1) ? ids : ids.substring(0, comma);
+        idStr.trim();
+        if (idStr.length() > 0) {
+          uint32_t id = strtol(idStr.c_str(), nullptr, 16);
+          if (id > 0) {  // Validate ID
+            loggedMessageIDs.push_back(id);
+            activeCANMessages[id] = {0};
+          }
+        }
+        if (comma == -1) break;
+        ids = ids.substring(comma + 1);
+      }
+    }
+  }
+  config.close();
+  
+  // Ensure we have at least one message ID
+  if (loggedMessageIDs.empty()) {
+    return false;
+  }
+  
+  return true;
+}
+
+void writeHeader() {
+  LogHeader header;
+  header.magic = 0x43414E44;  // 'CAND'
+  header.version = 1;
+  header.record_size = recordSize;
+  header.record_count = recordsPerBlock;
+  header.log_frequency = logFreq;
+  header.can_speed = canSpeed;
+  header.message_count = loggedMessageIDs.size();
+  
+  for (size_t i = 0; i < header.message_count; i++) {
+    header.message_ids[i] = loggedMessageIDs[i];
+  }
+  
+  file.write((const uint8_t*)&header, sizeof(LogHeader));
+  file.sync();
+}
+
+void canReceive() {
+  while (Can0.available()) {
+    Can0.read(rxmsg);
+    auto it = activeCANMessages.find(rxmsg.id);
+    if (it != activeCANMessages.end()) {
+      std::copy(rxmsg.buf, rxmsg.buf + 8, it->second.begin());
+    }
+  }
+}
+
+void logData() {
+  if (!logStarted) {
+    logStartMillis = millis();
+    logStarted = true;
+  }
+
+  uint32_t timestamp = millis() - logStartMillis;
+  uint16_t offset = 0;
+  
+  // Write timestamp
+  memcpy(logBuffer + bufferIndex * recordSize, &timestamp, sizeof(uint32_t));
+  offset += sizeof(uint32_t);
+
+  // Write CAN data
+  for (uint32_t id : loggedMessageIDs) {
+    const auto& msg = activeCANMessages[id];
+    memcpy(logBuffer + bufferIndex * recordSize + offset, msg.data(), 8);
+    offset += 8;
+  }
+
+  bufferIndex++;
+  
+  // If buffer is full, write to SD
+  if (bufferIndex >= recordsPerBlock) {
+    file.write(logBuffer, bufferSize);
+    file.sync();
+    bufferIndex = 0;
+  }
+}
+
+void calculateBufferSize() {
+  // Calculate record size based on message count (round up to power of 2)
+  uint16_t baseSize = sizeof(uint32_t) + loggedMessageIDs.size() * 8;
+  
+  if (baseSize <= 32) recordSize = 32;
+  else if (baseSize <= 64) recordSize = 64;
+  else if (baseSize <= 128) recordSize = 128;
+  else if (baseSize <= 256) recordSize = 256;
+  else recordSize = 512;
+  
+  recordsPerBlock = RECORD_ALIGN_BYTES / recordSize;
+  bufferSize = recordsPerBlock * recordSize;
+}
+
+// ======================== SETUP ========================
+void setup() {
+
+  // Serial.begin(115200);
+  // Initialize pins
+  pinMode(LED_PIN, OUTPUT);
+  pinMode(chipSelect, OUTPUT);
+  digitalWrite(LED_PIN, HIGH);  // Turn on LED during initialization
+  
+  // Configure SPI for SD card
   SPI.setMOSI(mosi);
   SPI.setMISO(miso);
   SPI.setSCK(sck);
-  pinMode(chipSelect, OUTPUT);
-  pinMode(13, OUTPUT);
-
-  delay(1000);
-
-  setSyncProvider(getTeensy3Time); // use teensy rtc as time source
-
-  // Create data file name using timestamp
-  char timestamp[15];
-  sprintf(timestamp, "%04d%02d%02d%02d%02d%02d", year(), month(), day(), hour(), minute(), second());
-  char fileName[30]; //= "CBR250RRi_" timestamp;
-  strcpy(fileName, "CBR250RRi_");
-  strcat(fileName, timestamp);
-  strcat(fileName, ".dat");
-
-  log_period = (1000000 / log_freq); // calculate log period in µs from frequency
-
-  // Initialize at the highest speed supported by the board that is
-  // not over 50 MHz. Try a lower speed if SPI errors occur.
-  if (!sd.begin(chipSelect, SD_SCK_MHZ(50)))
-  {
-    sd.initErrorHalt();
+  delay(100);  // Short delay to ensure SD card is powered up
+  
+  // Set up time provider
+  setSyncProvider(getTeensy3Time);
+  
+  // Initialize SD card
+  if (!sd.begin(chipSelect, SD_SCK_MHZ(50))) {
+    indicateError(ERROR_SD_INIT);
+    return;
   }
-
-  if (!file.open(fileName, O_CREAT | O_WRITE | O_EXCL))
-  {
-    error("file.open");
+  sdCardInitialized = true;
+  
+  // Load configuration
+  if (!loadConfig()) {
+    // If config load fails, fall back to defaults
+    if (loggedMessageIDs.empty()) {
+      // Add a default ID to monitor if none specified
+      loggedMessageIDs.push_back(0x7DF);  // OBD-II broadcast ID
+      activeCANMessages[0x7DF] = {0};
+    }
   }
-
-  //initialise log started flag
-  LogStarted = false;
-
-  file.open(fileName, O_WRITE);
-
-  //Serial.print(F("Logging to: ")); // debug only
-  //Serial.println(fileName);
-
-  // Initialise CAN
-  Can0.begin(can_speed);
-
-  digitalWrite(13, HIGH); //Turn on on-board LED for power indication only
+  configLoaded = true;
+  
+  // Calculate logging parameters
+  logPeriod = 1000000UL / logFreq;
+  calculateBufferSize();
+  
+  // Allocate buffer memory
+  logBuffer = (uint8_t*)malloc(bufferSize);
+  if (!logBuffer) {
+    indicateError(ERROR_MEMORY);
+    return;
+  }
+  memset(logBuffer, 0, bufferSize);
+  
+  // Initialize CAN bus
+  Can0.begin(canSpeed);
+  
+  // Create log file with timestamp in name
+  // char timestamp[15];
+  // sprintf(timestamp, "%04d%02d%02d%02d%02d%02d", 
+  //         year(), month(), day(), hour(), minute(), second());
+  char filename[32];
+  sprintf(filename, "%s%04d%02d%02d_%02d%02d%02d.dat", 
+          filePrefix, year(), month(), day(), hour(), minute(), second());
+          
+  if (!file.open(filename, O_CREAT | O_WRITE | O_EXCL)) {
+    indicateError(ERROR_FILE_OPEN);
+    return;
+  }
+  
+  // Write file header
+  writeHeader();
+  
+  // Initialization complete
+  digitalWrite(LED_PIN, LOW);
 }
 
-// ===============================================================================================================
-void loop()
-{
+// ======================== LOOP ========================
+void loop() {
+  // Handle errors
+  if (errorCode != ERROR_NONE) {
+    blinkError();
+    return;  // Don't continue if there are errors
+  }
+  
+  // Process incoming CAN messages
+  canReceive();
 
-  can_recieve(); // Carry out CAN recieve function as often as possible to reduce missed data
-
-  // Time for next record.
-  now_time = micros();
-  diff = (now_time - prev_time); // need to check this part to ensure it can deal with micros() overflow
-
-  if (diff >= log_period)
-  {
-    prev_time = now_time;
-
+  // Check if it's time to log data
+  uint32_t now = micros();
+  if ((now - prevMicros) >= logPeriod) {
+    prevMicros = now;
     logData();
-
-    // Force data to SD and update the directory entry to avoid data loss.
-    if (!file.sync() || file.getWriteError())
-    {
-      error("write error"); //debug only
-    }
+    
+    // Toggle LED to indicate logging activity
+    digitalWrite(LED_PIN, !digitalRead(LED_PIN));
   }
 }
