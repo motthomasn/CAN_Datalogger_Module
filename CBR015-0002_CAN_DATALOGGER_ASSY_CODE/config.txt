@@ -1,0 +1,4 @@
+filename_prefix=LOG
+log_frequency=10
+can_speed=500000
+can_ids=600,601,60A
